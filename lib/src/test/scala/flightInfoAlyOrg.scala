@@ -1,0 +1,147 @@
+import org.apache.log4j.{Level, Logger}
+import org.apache.spark._
+
+import scala.collection.mutable
+
+// import classes required for using GraphX
+import org.apache.spark.graphx._
+
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Success, Failure}
+import ExecutionContext.Implicits.global
+
+/**
+ * Created by TeiKou on 24/11/2016.
+ */
+case class Flight(dofM: String, dofW: String, carrier: String, tailnum: String,
+                  flnum: Int, org_id: Long, origin: String, dest_id: Long,
+                  dest: String, crsdeptime: Double, deptime: Double, depdelaymins: Double,
+                  crsarrtime: Double, arrtime: Double, arrdelay: Double, crselapsedtime: Double, dist: Int)
+
+object flightInfoAlyOrg {
+  //implicit val intLattice: Lattice[Int] = new NaturalNumberLattice
+
+
+  def main(args: Array[String]): Unit = {
+    Logger.getLogger("org").setLevel(Level.OFF)
+
+    // function to parse input into Flight class
+    def parseFlight(str: String): Flight = {
+      val line = str.split(",")
+      Flight(line(0), line(1), line(2), line(3), line(4).toInt,
+        line(5).toLong, line(6), line(7).toLong, line(8), line(9).toDouble, line(10).toDouble,
+        line(11).toDouble, line(12).toDouble, line(13).toDouble, line(14).toDouble, line(15).toDouble, line(16).toInt)
+    }
+    //initialised your SparkContext
+    // 1. Create Spark configuration
+    val conf = new SparkConf().setAppName("MyInfoAnaly").setMaster("local[*]")
+    // 2. Create Spark context
+    val sc = new SparkContext(conf)
+
+    // load the data into a RDD
+    val textRDD = sc.textFile("resources/rita2014jan.csv")
+
+    // parse the RDD of csv lines into an RDD of flight classes
+    val flightsRDD = textRDD.map(parseFlight).cache()
+    val airports = flightsRDD.map(flight => (flight.org_id, flight.origin)).distinct
+    // Map airport ID to the 3-letter code to use for printlns
+    val airportMap = airports.map { case ((org_id), name) => (org_id -> name) }.collect.toList.toMap
+    val airportMap2 = airports.map { case ((org_id), name) => (name -> org_id) }.collect.toList.toMap
+
+    // Defining a default vertex called nowhere
+    val nowhere = "nowhere"
+
+
+    // create routes RDD with srcid, destid, distance
+    val routes = flightsRDD.map(flight => ((flight.org_id, flight.dest_id), flight.dist)).distinct
+
+    // create edges RDD with srcid, destid , distance
+    val edges = routes.map {
+      case ((org_id, dest_id), distance) => Edge(org_id.toLong, dest_id.toLong, distance)
+    }
+
+
+    // define the graph
+    val graph = Graph(airports, edges, nowhere)
+
+
+    //val airportsIDs: ConcurrentSet[Int] = TrieMap.empty[Int, Int]
+    type ConcurrentSet[T] = TrieMap[T, Int]
+
+    //val resultFlights2 = CellCompleter(pool)
+
+    //[App1] Find all flights from A to B which is direct or transfer for only 1 time and the distance should
+    //not exceed 50% of the direct one
+    //bookingTick("SFO","DFW")
+
+
+    bookingTick("SFO","ORD")
+    //SFO[14771]--ORD[13930],SFO[14771]--DFW[11298]--ORD[13930],
+    //bookingTick("ORD","DFW")
+
+
+
+
+
+
+
+    def bookingTick(startP:String,endP:String) {
+      val t0 = System.nanoTime()
+      val startPId = airportMap2(startP)
+      val endPId = airportMap2(endP)
+      println("Finding flights from " + startP + "[" + startPId + "] to " + endP + "[" + endPId + "]")
+      val resultFlights = mutable.HashMap[List[Long], Int]()
+
+        graph.edges.filter { case Edge(src1, dst1, prop1) => src1 == startPId }.collect.foreach {
+          case Edge(src1, dst1, prop1) =>
+            //println("src1: "+src1+" dst1: "+dst1)
+            if (dst1 == endPId) {
+              //println("dst1: " + dst1)
+              //println("Size: " + resultFlights.size)
+              //println(List(src1, dst1) + " value: " + resultFlights.get(List(src1.toLong, dst1.toLong)))
+              resultFlights.+=((List(src1.toLong, dst1.toLong), prop1))
+              //resultFlights.foreach {
+              //  case (info) => println("Route: " + info)
+              //}
+            }
+            else {
+              graph.edges.filter { case Edge(src2, dst2, prop2) => {
+                //println("dst1: " + dst1 + "src2: " + src2 + "dst2: " + dst2 + "end: " + endPId)
+                src2==dst1 && dst2 == endPId
+              }
+              }.collect.foreach {
+                case Edge(src2, dst2, prop2) => {
+                  resultFlights.+=((List(src1.toLong, src2.toLong, dst2.toLong), prop1 + prop2))
+                }
+              }
+            }
+
+
+      }
+            //Await.result(f,60 seconds)
+            //Thread.sleep(20000)
+
+            resultFlights.toSeq.sortBy(_._2).foreach {
+              case(lst:List[Long],dt:Int)=>{
+                print("Route: ")
+                for(e<-lst){
+                  print(airportMap(e.toLong)+" ")
+                }
+                print("Distance: "+dt+"\n")
+              }}
+             val t1 = System.nanoTime()
+             println("----------------------------------------Analyze Flight Info end. Elapsed time: " + (t1 - t0)/1000000000.0 + " s")
+
+
+        }
+
+    }
+
+
+
+
+
+
+
+}

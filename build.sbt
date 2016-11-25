@@ -26,9 +26,23 @@ lazy val lib: Project = (project in file("lib")).
     libraryDependencies += scalaTest,
     libraryDependencies += opal,
     libraryDependencies += opalFixpoint,
-    libraryDependencies += scalaMeter
+    libraryDependencies += scalaMeter,
+    libraryDependencies += sparkcore,
+    libraryDependencies += sparksql,
+    libraryDependencies += sparkgraphx,
+    libraryDependencies += log4j
   ).configs(
     Benchmark
   ).settings(
     inConfig(Benchmark)(Defaults.testSettings): _*
   )
+
+//add spark for testing start...
+//scalaVersion := "2.11.7"
+//libraryDependencies += "org.apache.spark" %% "spark-core" % "2.0.2"
+//libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.0.2"
+//libraryDependencies += "org.apache.spark" %% "spark-graphx" % "2.0.2"
+//add spark for testing end.
+
+
+fork in run := true

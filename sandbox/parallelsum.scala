@@ -124,6 +124,7 @@ object ParallelSum {
 
   def main(args: Array[String]): Unit = {
     val numThreads = args(1).toInt
+
     println(s"Using $numThreads threads")
 
     val seed: Int = 5
