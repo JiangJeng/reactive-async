@@ -1,0 +1,9 @@
+    The best way to learn Scala depends on what you know already and the way you prefer to learn things. There is a variety of resources available including books, tutorials, training courses, presentations, and of course the Scala compiler for practice. Many people find a good combination is to have one of the Scala books at hand and to start right away trying the examples with the Scala compiler. On the other hand, you may want to get started with a Scala training course or using the material available online.
+
+    As your knowledge of Scala grows, you will find there is more advanced material and a very friendly Scala community at hand to help you. They all share a passion for Scala and welcome newcomers warmly. Many have written helpful material for programmers new to Scala, will respond to emails asking for help or are sharing neat new techniques, advanced concepts or tools in one of several Scala forums or personal blogs.
+
+    Scala for Programming Beginners
+    If you are just starting to learn how to code, you will find that a large portion of the material about Scala assumes that you already have some programming experience. There are two valuable resources which we can recommend to programming beginners that will take you directly into the world of Scala:
+
+    The online class Functional Programming Principles in Scala, available on Coursera. Taught by the creator of Scala, Martin Odersky, this online class takes a somewhat academic approach to teach the fundamentals of functional programming. You will learn a lot of Scala by solving the programming assignments.
+    Kojo is an interactive learning environment that uses Scala programming to explore and play with math, art, music, animations and games.

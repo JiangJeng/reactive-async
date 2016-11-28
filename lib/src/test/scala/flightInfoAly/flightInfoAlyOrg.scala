@@ -1,8 +1,9 @@
+package flightInfoAly
+
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark._
 
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
 
 // import classes required for using GraphX
 import org.apache.spark.graphx._
@@ -15,7 +16,12 @@ import ExecutionContext.Implicits.global
 /**
  * Created by TeiKou on 24/11/2016.
  */
-object flightInfoAlyCur {
+case class Flight(dofM: String, dofW: String, carrier: String, tailnum: String,
+                  flnum: Int, org_id: Long, origin: String, dest_id: Long,
+                  dest: String, crsdeptime: Double, deptime: Double, depdelaymins: Double,
+                  crsarrtime: Double, arrtime: Double, arrdelay: Double, crselapsedtime: Double, dist: Int)
+
+object flightInfoAlyOrg {
   //implicit val intLattice: Lattice[Int] = new NaturalNumberLattice
 
 
@@ -87,36 +93,36 @@ object flightInfoAlyCur {
       val startPId = airportMap2(startP)
       val endPId = airportMap2(endP)
       println("Finding flights from " + startP + "[" + startPId + "] to " + endP + "[" + endPId + "]")
-      //val resultFlights = mutable.HashMap[List[Long], Int]()
-      val resultFlights = TrieMap[List[Long], Int]()
+      val resultFlights = mutable.HashMap[List[Long], Int]()
 
-
-
-        graph.edges.filter { case Edge(src1, dst1, prop1) => src1 == startPId }.collect.foreach {
-          case Edge(src1, dst1, prop1) =>
-            if (dst1 == endPId) {
-              resultFlights.put(List(src1.toLong, dst1.toLong), prop1)
+      graph.edges.filter { case Edge(src1, dst1, prop1) => src1 == startPId }.collect.foreach {
+        case Edge(src1, dst1, prop1) =>
+          //println("src1: "+src1+" dst1: "+dst1)
+          if (dst1 == endPId) {
+            //println("dst1: " + dst1)
+            //println("Size: " + resultFlights.size)
+            //println(List(src1, dst1) + " value: " + resultFlights.get(List(src1.toLong, dst1.toLong)))
+            resultFlights.+=((List(src1.toLong, dst1.toLong), prop1))
+            //resultFlights.foreach {
+            //  case (info) => println("Route: " + info)
+            //}
+          }
+          else {
+            graph.edges.filter { case Edge(src2, dst2, prop2) => {
+              //println("dst1: " + dst1 + "src2: " + src2 + "dst2: " + dst2 + "end: " + endPId)
+              src2==dst1 && dst2 == endPId
             }
-            else {
-              val f = Future {
-                graph.edges.filter { case Edge(src2, dst2, prop2) => {
-                  src2 == dst1 && dst2 == endPId
-                }
-                }.collect.foreach {
-                  case Edge(src2, dst2, prop2) => {
-                    resultFlights.put(List(src1.toLong, src2.toLong, dst2.toLong), prop1 + prop2)
-                  }
-                }
+            }.collect.foreach {
+              case Edge(src2, dst2, prop2) => {
+                resultFlights.+=((List(src1.toLong, src2.toLong, dst2.toLong), prop1 + prop2))
               }
-              //Await.result(f,Duration.Inf)
-
             }
+          }
 
 
-        }
-
-
-      Thread.sleep(1000)
+      }
+      //Await.result(f,60 seconds)
+      //Thread.sleep(20000)
 
       resultFlights.toSeq.sortBy(_._2).foreach {
         case(lst:List[Long],dt:Int)=>{
@@ -127,10 +133,17 @@ object flightInfoAlyCur {
           print("Distance: "+dt+"\n")
         }}
       val t1 = System.nanoTime()
-      println("----------------------------------------Analyze Flight Info end. Elapsed time: " + (t1 - t0)/1000000000.0 + " s")
+      println("----------------------------------------Analyze Flight Info end. Find "+resultFlights.size+" Flights Elapsed time: " + (t1 - t0)/1000000000.0 + " s")
 
 
     }
 
   }
+
+
+
+
+
+
+
 }

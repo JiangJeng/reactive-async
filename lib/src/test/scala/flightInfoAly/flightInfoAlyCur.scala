@@ -1,24 +1,24 @@
-import cell.{Cell, CellCompleter, HandlerPool}
-import lattice._
+package flightInfoAly
+
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark._
+
+import scala.collection.mutable
+import scala.concurrent.duration.Duration
 
 // import classes required for using GraphX
 import org.apache.spark.graphx._
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Promise, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Success, Failure}
+import ExecutionContext.Implicits.global
 
 /**
  * Created by TeiKou on 24/11/2016.
  */
-object flightInfoAlyAS {
-  /* lattice instance for cells */
-  implicit val SetStringLattice: Lattice[Set[String]] = new SetStringLattice
-  type K = DefaultKey[Set[String]]
-
-
+object flightInfoAlyCur {
+  //implicit val intLattice: Lattice[Int] = new NaturalNumberLattice
 
 
   def main(args: Array[String]): Unit = {
@@ -72,7 +72,7 @@ object flightInfoAlyAS {
     //[App1] Find all flights from A to B which is direct or transfer for only 1 time and the distance should
     //not exceed 50% of the direct one
     //bookingTick("SFO","DFW")
-    implicit val pool = new HandlerPool
+
 
     bookingTick("SFO","ORD")
     //SFO[14771]--ORD[13930],SFO[14771]--DFW[11298]--ORD[13930],
@@ -84,59 +84,55 @@ object flightInfoAlyAS {
 
 
 
-    def bookingTick(startP:String,endP:String)(implicit pool: HandlerPool) {
+    def bookingTick(startP:String,endP:String) {
       val t0 = System.nanoTime()
-      pool.execute { () =>
-        val startPId = airportMap2(startP)
-        val endPId = airportMap2(endP)
-        println("Finding flights from " + startP + "[" + startPId + "] to " + endP + "[" + endPId + "]")
-        //val resultFlights = mutable.HashMap[List[Long], Int]()
-        //val resultFlights = TrieMap[List[Long], Int]()
-        val resultFlights = CellCompleter[K, Set[String]](pool, new DefaultKey[Set[String]])
+      val startPId = airportMap2(startP)
+      val endPId = airportMap2(endP)
+      println("Finding flights from " + startP + "[" + startPId + "] to " + endP + "[" + endPId + "]")
+      //val resultFlights = mutable.HashMap[List[Long], Int]()
+      val resultFlights = TrieMap[List[Long], Int]()
 
 
 
-        graph.edges.filter { case Edge(src1, dst1, prop1) => src1 == startPId }.collect.foreach {
-          case Edge(src1, dst1, prop1) =>
-            if (dst1 == endPId) {
-              resultFlights.putNext(Set(src1 + "," + dst1 + "," + prop1))
-            }
-            else {
-              val f = Future {
-                graph.edges.filter { case Edge(src2, dst2, prop2) => {
-                  src2 == dst1 && dst2 == endPId
-                }
-                }.collect.foreach {
-                  case Edge(src2, dst2, prop2) => {
-                    resultFlights.putNext(Set(src1 + "," + src2 + "," + dst2 + "," + (prop1 + prop2)))
-                  }
+      graph.edges.filter { case Edge(src1, dst1, prop1) => src1 == startPId }.collect.foreach {
+        case Edge(src1, dst1, prop1) =>
+          if (dst1 == endPId) {
+            resultFlights.put(List(src1.toLong, dst1.toLong), prop1)
+          }
+          else {
+            val f = Future {
+              graph.edges.filter { case Edge(src2, dst2, prop2) => {
+                src2 == dst1 && dst2 == endPId
+              }
+              }.collect.foreach {
+                case Edge(src2, dst2, prop2) => {
+                  resultFlights.put(List(src1.toLong, src2.toLong, dst2.toLong), prop1 + prop2)
                 }
               }
-              //Await.result(f,Duration.Inf)
-
             }
+            //Await.result(f,Duration.Inf)
 
-
-        }
-
-
-        pool.onQuiescent {
-          () => {
-            resultFlights.cell.getResult().foreach {
-              case (info) => println("Route: " + info)
-            }
-            val t1 = System.nanoTime()
-            println("----------------------------------------Analyze Flight Info end. Elapsed time: " + (t1 - t0) / 1000000000.0 + " s")
           }
 
-        }
 
-
-        //resultFlights.cell
-      }
       }
 
+
+      Thread.sleep(1000)
+
+      resultFlights.toSeq.sortBy(_._2).foreach {
+        case(lst:List[Long],dt:Int)=>{
+          print("Route: ")
+          for(e<-lst){
+            print(airportMap(e.toLong)+" ")
+          }
+          print("Distance: "+dt+"\n")
+        }}
+      val t1 = System.nanoTime()
+      println("----------------------------------------Analyze Flight Info end. Find "+resultFlights.size+" Flights Elapsed time: " + (t1 - t0)/1000000000.0 + " s")
+
+
+    }
 
   }
-
 }
